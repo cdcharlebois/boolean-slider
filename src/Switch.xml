@@ -73,6 +73,11 @@
             <description>Nanoflow to trigger when button is toggled</description>
             <returnType type="Void"/>
         </property> -->
+        <property key="useLocation" type="boolean" defaultValue="false">
+          <caption>Location?</caption>
+          <category>Location</category>
+          <description></description>
+        </property>
         <property key="locationEntity" type="entity" isPath="yes" allowNonPersistableEntities="false" pathType="reference" required="false">
           <caption>Location Entity</caption>
           <category>Location</category>

@@ -29,6 +29,7 @@ interface SwitchContainerProps extends WrapperProps {
     onChangeMicroflow: string;
     onChangeNanoflow: Nanoflow;
     locationEntity: string;
+    useLocation: boolean;
 }
 
 interface SwitchContainerState {
@@ -88,10 +89,10 @@ class SwitchContainer extends Component<SwitchContainerProps, SwitchContainerSta
     }
 
     private renderSwitch(hasLabel = false): SFCElement<SwitchProps> {
-        const { class: className, colorStyle, deviceStyle, style } = this.props;
+        const { class: className, colorStyle, deviceStyle, style, useLocation } = this.props;
 
         // if true, get the geolocation in the background and create and commit a new location object
-        if (this.state.isChecked) {
+        if (this.state.isChecked && useLocation) {
             // create a new location entity and set association
             this.requestGPS();
         }
