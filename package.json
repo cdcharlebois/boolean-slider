@@ -97,6 +97,7 @@
     "webpack-dev-server": "^2.4.5"
   },
   "dependencies": {
+    "@types/cordova": "0.0.34",
     "@types/core-js": "^0.9.46",
     "classnames": "^2.2.5"
   }

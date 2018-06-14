@@ -1,7 +1,15 @@
+/**
+ * TODO: 
+ * @author Conner Charlebois
+ * [x] When the switch renders, if the value is true, get the geolocation and update the context object
+ * [x] When the switch is set to true, get the geolocation and update the context object
+ * @since Jun 14, 2018
+ */
 import { Component, SFCElement, createElement } from "react";
 
 import { Switch, SwitchProps, SwitchStatus } from "./Switch";
 import { Label } from "./Label";
+// import "@types/cordova";
 
 interface WrapperProps {
     class?: string;
@@ -20,6 +28,7 @@ interface SwitchContainerProps extends WrapperProps {
     labelWidth: number;
     onChangeMicroflow: string;
     onChangeNanoflow: Nanoflow;
+    locationEntity: string;
 }
 
 interface SwitchContainerState {
@@ -37,11 +46,17 @@ type DeviceStyle = "auto" | "android" | "iOS";
 
 class SwitchContainer extends Component<SwitchContainerProps, SwitchContainerState> {
     private subscriptionHandles: number[];
+    private locationAssc: string;
+    private locationEntity: string;
+
 
     constructor(props: SwitchContainerProps) {
         super(props);
 
         this.subscriptionHandles = [];
+        const path = this.props.locationEntity.split("/"); // [assc, entity]
+        this.locationAssc = path[0];
+        this.locationEntity = path[1];
         this.state = this.updateState(props.mxObject);
         this.handleToggle = this.handleToggle.bind(this);
         this.subscriptionCallback = this.subscriptionCallback.bind(this);
@@ -74,6 +89,12 @@ class SwitchContainer extends Component<SwitchContainerProps, SwitchContainerSta
 
     private renderSwitch(hasLabel = false): SFCElement<SwitchProps> {
         const { class: className, colorStyle, deviceStyle, style } = this.props;
+
+        // if true, get the geolocation in the background and create and commit a new location object
+        if (this.state.isChecked) {
+            // create a new location entity and set association
+            this.requestGPS();
+        }
 
         return createElement(Switch, {
             alertMessage: this.state.alertMessage,
@@ -169,12 +190,12 @@ class SwitchContainer extends Component<SwitchContainerProps, SwitchContainerSta
                 origin: mxform,
                 params: {
                     applyto: "selection",
-                    guids: [ mxObject.getGuid() ]
+                    guids: [mxObject.getGuid()]
                 }
             });
         }
 
-        if (onChangeNanoflow.nanoflow) {
+        if (onChangeNanoflow && onChangeNanoflow.nanoflow) {
             const context = new mendix.lib.MxContext();
             context.setContext(mxObject.getEntity(), mxObject.getGuid());
             window.mx.data.callNanoflow({
@@ -203,6 +224,58 @@ class SwitchContainer extends Component<SwitchContainerProps, SwitchContainerSta
         }
 
         return {};
+    }
+
+    private requestGPS() {
+        cordova.plugins.locationAccuracy.request(
+            this.onAcceptGPS.bind(this),
+            this.onLocationFailure.bind(this), cordova.plugins.locationAccuracy.REQUEST_PRIORITY_HIGH_ACCURACY);
+    }
+
+    private onAcceptGPS(success: any) {
+        console.log("Successfully requested accuracy: " + success.message);
+        navigator.geolocation.getCurrentPosition(
+            this.onLocationSuccess.bind(this),
+            this.onLocationFailure.bind(this)
+        );
+    }
+
+    private onLocationSuccess(position: any) {
+        this.createAndCommitLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+        })
+    }
+
+    private onLocationFailure(err: any) {
+        const { booleanAttribute, mxObject } = this.props;
+        console.error("Could not get location", err);
+        if (mxObject) {
+            mxObject.set(booleanAttribute, false);
+        }
+    }
+
+    private createAndCommitLocation(coords: any) {
+        const { mxObject } = this.props;
+        mx.data.create({
+            entity: this.locationEntity,
+            callback: obj => {
+                console.log("Object created on server");
+                obj.set(this.locationAssc, mxObject && mxObject.getGuid());
+                obj.set("Latitude", coords.lat);
+                obj.set("Longitude", coords.lng);
+                console.log("committing the object...");
+                console.log(obj);
+                mx.data.commit({
+                    mxobj: obj,
+                    callback: () => { console.log("Location committed") },
+                    error: (err) => { console.log("Location failed to commit", err) }
+                })
+            },
+            error: e => {
+                console.error("Could not commit object:", e);
+            }
+        });
     }
 }
 
